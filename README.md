@@ -1,6 +1,4 @@
 # CloudClip
-基于cloudflare workers 的CloudClip 云剪贴板项目-CloudClip Cloud Clipboard Project Based on Cloudflare Workers
-# CloudClip
 
 一个极简的、基于 Cloudflare Workers + KV 的跨端文件与文字传输工具。
 
