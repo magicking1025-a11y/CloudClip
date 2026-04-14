@@ -59,6 +59,7 @@ export default {
         const formData = await request.formData();
         const files = formData.getAll("files");
         const text = formData.get("text") || "";
+        const ttl = parseInt(formData.get("ttl") || "86400"); // 接收过期时间
         const id = Math.random().toString(36).substring(2, 8);
         let filesMeta = [];
 
@@ -66,11 +67,11 @@ export default {
           const file = files[i];
           if (file && file.size > 0) {
             const fileKey = `${id}_file_${i}`;
-            await env.CLIPBOARD_KV.put(fileKey, await file.arrayBuffer());
+            await env.CLIPBOARD_KV.put(fileKey, await file.arrayBuffer(), { expirationTtl: ttl });
             filesMeta.push({ name: file.name, type: file.type, size: (file.size / 1024 / 1024).toFixed(2) + " MB", key: fileKey });
           }
         }
-        await env.CLIPBOARD_KV.put(id, JSON.stringify({ text, filesMeta }));
+        await env.CLIPBOARD_KV.put(id, JSON.stringify({ text, filesMeta }), { expirationTtl: ttl });
         return new Response(JSON.stringify({ id }), { headers: { "Content-Type": "application/json" } });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
@@ -96,7 +97,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         :root {
             --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --primary: #2563eb;
             --border: #e2e8f0; --secondary: #64748b; --danger: #ef4444;
-            --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font: 'Inter', system-ui, sans-serif;
         }
         [data-theme='dark'] {
             --bg: #0f172a; --card: #1e293b; --text: #f1f5f9; --primary: #3b82f6;
@@ -121,45 +122,43 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         }
         .auth-card { background: var(--card); padding: 30px; border-radius: 20px; width: 300px; text-align: center; }
         
-        input, textarea { 
-            width: 100%; padding: 14px; margin: 10px 0; border: 1px solid var(--border);
+        input, textarea, select { 
+            width: 100%; padding: 12px; margin: 10px 0; border: 1px solid var(--border);
             border-radius: 12px; background: var(--bg); color: var(--text); box-sizing: border-box;
-            font-family: var(--font); font-size: 14px; outline: none; transition: border 0.2s;
+            font-family: var(--font); font-size: 14px; outline: none;
         }
-        input:focus, textarea:focus { border-color: var(--primary); }
+        select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
 
         .btn { 
             width: 100%; background: var(--primary); color: white; border: none; padding: 14px; 
             border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 10px;
-            font-family: var(--font); transition: opacity 0.2s, transform 0.1s;
+            font-family: var(--font); transition: 0.2s;
         }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .upload-area {
-            border: 2px dashed var(--border); padding: 35px; border-radius: 16px;
-            text-align: center; cursor: pointer; margin: 20px 0; transition: 0.2s;
+            border: 2px dashed var(--border); padding: 30px; border-radius: 16px;
+            text-align: center; cursor: pointer; margin: 15px 0; transition: 0.2s;
         }
         .upload-area:hover { border-color: var(--primary); background: rgba(37, 99, 235, 0.05); }
 
         .file-item {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 12px; background: var(--bg); border-radius: 10px; margin-bottom: 8px; font-size: 13px;
+            padding: 10px; background: var(--bg); border-radius: 10px; margin-bottom: 8px; font-size: 13px;
         }
         
-        /* 复制结果卡片样式 */
         #result { 
             margin-top: 20px; padding: 16px; border-radius: 12px; 
             background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2);
-            display: none; cursor: pointer; transition: 0.2s;
+            display: none; cursor: pointer;
         }
-        #result:hover { background: rgba(34, 197, 94, 0.15); }
         
         .preview-text { 
             background: var(--bg); padding: 18px; border-radius: 14px; border-left: 4px solid var(--primary);
-            white-space: pre-wrap; margin-bottom: 20px; font-size: 14px; line-height: 1.6;
+            white-space: pre-wrap; margin-bottom: 20px; font-size: 14px;
         }
-        h2 { font-weight: 700; letter-spacing: -0.5px; }
+        label { font-size: 12px; color: var(--secondary); font-weight: 600; margin-left: 4px; }
     </style>
 </head>
 <body data-theme="light">
@@ -194,12 +193,20 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         ` : `
             <h2 data-i18n="app_title">🚀 CloudClip 跨端传输</h2>
             <textarea id="textInput" data-i18n-placeholder="text_placeholder" placeholder="输入文字内容..."></textarea>
+            
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
                 <div style="font-size: 32px; margin-bottom:8px;">📁</div>
                 <div style="font-weight:700;" data-i18n="upload_hint">选择或拖拽文件</div>
                 <input type="file" id="fileInput" hidden multiple onchange="showFiles()">
             </div>
             <div id="fileListView"></div>
+
+            <label data-i18n="ttl_label">文件有效期</label>
+            <select id="ttlSelect">
+                <option value="86400" data-i18n="opt_1d">1 天 (24 小时)</option>
+                <option value="604800" data-i18n="opt_7d">7 天 (一周)</option>
+            </select>
+
             <button class="btn" id="uploadBtn" onclick="upload()" data-i18n="upload_btn">上传并获取链接</button>
             <div id="result" onclick="copyLink()"></div>
         `}
@@ -213,13 +220,16 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 auth_btn: "确认",
                 app_title: "🚀 CloudClip 云剪贴板",
                 text_placeholder: "输入文字内容... (可选)",
-                upload_hint: "选择或拖拽文件 (单个 25MB 内)",
+                upload_hint: "选择或拖拽文件 (单文件 25MB 内)",
                 upload_btn: "上传并获取链接",
                 share_title: "📦 分享内容",
                 back_home: "← 我也要发送文件",
                 uploading: "正在上传...",
                 success: "✨ 点击链接复制",
                 copied: "✅ 已复制到剪贴板",
+                ttl_label: "文件有效期",
+                opt_1d: "1 天 (24 小时)",
+                opt_7d: "7 天 (一周)",
                 err_code: "安全码错误",
                 err_fail: "上传失败"
             },
@@ -236,6 +246,9 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 uploading: "Uploading...",
                 success: "✨ Click to Copy Link",
                 copied: "✅ Copied to Clipboard",
+                ttl_label: "Expiration",
+                opt_1d: "1 Day (24 Hours)",
+                opt_7d: "7 Days (1 Week)",
                 err_code: "Invalid Security Code",
                 err_fail: "Upload Failed"
             }
@@ -288,6 +301,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
             const btn = document.getElementById('uploadBtn');
             const files = document.getElementById('fileInput').files;
             const text = document.getElementById('textInput').value;
+            const ttl = document.getElementById('ttlSelect').value;
             if (files.length === 0 && !text) return;
 
             btn.disabled = true;
@@ -296,6 +310,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
             const fd = new FormData();
             Array.from(files).forEach(f => fd.append('files', f));
             fd.append('text', text);
+            fd.append('ttl', ttl);
 
             try {
                 const res = await fetch('/', { method: 'POST', body: fd });
@@ -320,13 +335,10 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 const resDiv = document.getElementById('result');
                 const originalContent = resDiv.innerHTML;
                 resDiv.innerHTML = \`<div style="font-weight:700; font-size:14px; color:#166534;">\${i18n[currentLang].copied}</div>\`;
-                setTimeout(() => {
-                    resDiv.innerHTML = originalContent;
-                }, 2000);
+                setTimeout(() => { resDiv.innerHTML = originalContent; }, 2000);
             });
         }
 
-        // 初始化
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.body.setAttribute('data-theme', savedTheme);
         document.getElementById('themeBtn').innerText = savedTheme === 'dark' ? '☀️' : '🌙';
