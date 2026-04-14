@@ -21,7 +21,8 @@ export default {
 
     // 2. 下载逻辑
     if (path.includes("/download")) {
-      const mainId = path.split("/")[0];
+      const parts = path.split("/");
+      const mainId = parts[0];
       const index = new URLSearchParams(url.search).get("index") || 0;
       const dataStr = await env.CLIPBOARD_KV.get(mainId);
       if (!dataStr) return new Response("链接已过期", { status: 404 });
@@ -59,7 +60,7 @@ export default {
         const formData = await request.formData();
         const files = formData.getAll("files");
         const text = formData.get("text") || "";
-        const ttl = parseInt(formData.get("ttl") || "86400"); // 接收过期时间
+        const ttl = parseInt(formData.get("ttl") || "86400");
         const id = Math.random().toString(36).substring(2, 8);
         let filesMeta = [];
 
@@ -105,12 +106,13 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         }
         body { 
             background: var(--bg); color: var(--text); font-family: var(--font);
-            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center;
             transition: background 0.3s;
         }
         .container { 
             width: 90%; max-width: 480px; padding: 30px; background: var(--card); 
             border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); border: 1px solid var(--border);
+            margin: 20px 0;
         }
         .top-bar { position: absolute; top: 20px; right: 20px; display: flex; gap: 15px; }
         .icon-btn { cursor: pointer; font-size: 20px; opacity: 0.7; transition: 0.2s; user-select: none; }
@@ -132,7 +134,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         .btn { 
             width: 100%; background: var(--primary); color: white; border: none; padding: 14px; 
             border-radius: 12px; font-weight: 700; cursor: pointer; margin-top: 10px;
-            font-family: var(--font); transition: 0.2s;
+            font-family: var(--font); transition: 0.2s; text-align: center; display: block; text-decoration: none;
         }
         .btn:active { transform: scale(0.98); }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -156,9 +158,18 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         
         .preview-text { 
             background: var(--bg); padding: 18px; border-radius: 14px; border-left: 4px solid var(--primary);
-            white-space: pre-wrap; margin-bottom: 20px; font-size: 14px;
+            white-space: pre-wrap; margin-bottom: 20px; font-size: 14px; word-break: break-all;
         }
         label { font-size: 12px; color: var(--secondary); font-weight: 600; margin-left: 4px; }
+
+        /* Footer Style */
+        .footer {
+            margin-bottom: 20px; text-align: center; font-size: 13px; color: var(--secondary); opacity: 0.7;
+        }
+        .footer a {
+            color: var(--primary); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body data-theme="light">
@@ -182,8 +193,8 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
             <div id="fileList">
                 ${data.filesMeta.map((f, i) => `
                     <div class="file-item">
-                        <span style="font-weight:600;">${f.name} <small style="color:var(--secondary); font-weight:400;">(${f.size})</small></span>
-                        <a href="/${id}/download?index=${i}" class="btn" style="width:auto; margin:0; padding:6px 14px; font-size:12px; text-decoration:none;">下载</a>
+                        <span style="font-weight:600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;">${f.name} <small style="color:var(--secondary); font-weight:400;">(${f.size})</small></span>
+                        <a href="/${id}/download?index=${i}" class="btn" style="width:auto; margin:0; padding:6px 14px; font-size:12px;">下载</a>
                     </div>
                 `).join('')}
             </div>
@@ -212,6 +223,14 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         `}
     </div>
 
+    <div class="footer">
+        <span data-i18n="footer_text">开源项目地址：</span>
+        <a href="https://github.com/magicking1025-a11y/CloudClip" target="_blank">
+            <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+            GitHub
+        </a>
+    </div>
+
     <script>
         const i18n = {
             zh: {
@@ -231,7 +250,8 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 opt_1d: "1 天 (24 小时)",
                 opt_7d: "7 天 (一周)",
                 err_code: "安全码错误",
-                err_fail: "上传失败"
+                err_fail: "上传失败",
+                footer_text: "开源项目地址："
             },
             en: {
                 auth_title: "🔒 Security Check",
@@ -250,7 +270,8 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 opt_1d: "1 Day (24 Hours)",
                 opt_7d: "7 Days (1 Week)",
                 err_code: "Invalid Security Code",
-                err_fail: "Upload Failed"
+                err_fail: "Upload Failed",
+                footer_text: "Open Source:"
             }
         };
 
@@ -293,7 +314,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
             const files = document.getElementById('fileInput').files;
             const view = document.getElementById('fileListView');
             view.innerHTML = Array.from(files).map(f => \`
-                <div class="file-item"><span style="font-weight:600;">\${f.name}</span><small>\${(f.size/1024/1024).toFixed(2)}MB</small></div>
+                <div class="file-item"><span style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">\${f.name}</span><small>\${(f.size/1024/1024).toFixed(2)}MB</small></div>
             \`).join('');
         }
 
