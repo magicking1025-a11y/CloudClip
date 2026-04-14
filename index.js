@@ -91,7 +91,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudClip | 极简分发</title>
+    <title>CloudClip</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -191,7 +191,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 <a href="/" style="color:var(--primary); text-decoration:none; font-size:14px; font-weight:600;" data-i18n="back_home">← 我也要发送</a>
             </div>
         ` : `
-            <h2 data-i18n="app_title">🚀 CloudClip 跨端传输</h2>
+            <h2 data-i18n="app_title">🚀 CloudClip</h2>
             <textarea id="textInput" data-i18n-placeholder="text_placeholder" placeholder="输入文字内容..."></textarea>
             
             <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -218,7 +218,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 auth_title: "🔒 安全验证",
                 auth_placeholder: "输入访问安全码",
                 auth_btn: "确认",
-                app_title: "🚀 CloudClip 云剪贴板",
+                app_title: "🚀 CloudClip",
                 text_placeholder: "输入文字内容... (可选)",
                 upload_hint: "选择或拖拽文件 (单文件 25MB 内)",
                 upload_btn: "上传并获取链接",
