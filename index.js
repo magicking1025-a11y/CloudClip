@@ -25,7 +25,7 @@ export default {
       const mainId = parts[0];
       const index = new URLSearchParams(url.search).get("index") || 0;
       const dataStr = await env.CLIPBOARD_KV.get(mainId);
-      if (!dataStr) return new Response("链接已过期", { status: 404 });
+      if (!dataStr) return new Response("链接已过期或不存在", { status: 404 });
       
       const data = JSON.parse(dataStr);
       const fileInfo = data.filesMeta[index];
@@ -42,7 +42,7 @@ export default {
     // 3. 查看分享内容
     if (path && path !== "verify") {
       const dataStr = await env.CLIPBOARD_KV.get(path);
-      if (!dataStr) return new Response("内容不存在", { status: 404 });
+      if (!dataStr) return new Response("内容不存在或已过期", { status: 404 });
       return new Response(renderFullHTML(JSON.parse(dataStr), path, true, true), {
         headers: { "Content-Type": "text/html;charset=UTF-8" }
       });
@@ -60,7 +60,11 @@ export default {
         const formData = await request.formData();
         const files = formData.getAll("files");
         const text = formData.get("text") || "";
-        const ttl = parseInt(formData.get("ttl") || "86400");
+        const ttlRaw = parseInt(formData.get("ttl") || "86400");
+        
+        // 核心修改：如果 ttl 为 0，则不设置 expirationTtl（即永久存储）
+        const kvOptions = ttlRaw > 0 ? { expirationTtl: ttlRaw } : {};
+        
         const id = Math.random().toString(36).substring(2, 8);
         let filesMeta = [];
 
@@ -68,11 +72,16 @@ export default {
           const file = files[i];
           if (file && file.size > 0) {
             const fileKey = `${id}_file_${i}`;
-            await env.CLIPBOARD_KV.put(fileKey, await file.arrayBuffer(), { expirationTtl: ttl });
-            filesMeta.push({ name: file.name, type: file.type, size: (file.size / 1024 / 1024).toFixed(2) + " MB", key: fileKey });
+            await env.CLIPBOARD_KV.put(fileKey, await file.arrayBuffer(), kvOptions);
+            filesMeta.push({ 
+              name: file.name, 
+              type: file.type, 
+              size: (file.size / 1024 / 1024).toFixed(2) + " MB", 
+              key: fileKey 
+            });
           }
         }
-        await env.CLIPBOARD_KV.put(id, JSON.stringify({ text, filesMeta }), { expirationTtl: ttl });
+        await env.CLIPBOARD_KV.put(id, JSON.stringify({ text, filesMeta }), kvOptions);
         return new Response(JSON.stringify({ id }), { headers: { "Content-Type": "application/json" } });
       } catch (e) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
@@ -162,7 +171,6 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
         }
         label { font-size: 12px; color: var(--secondary); font-weight: 600; margin-left: 4px; }
 
-        /* Footer Style */
         .footer {
             margin-bottom: 20px; text-align: center; font-size: 13px; color: var(--secondary); opacity: 0.7;
         }
@@ -216,6 +224,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
             <select id="ttlSelect">
                 <option value="86400" data-i18n="opt_1d">1 天 (24 小时)</option>
                 <option value="604800" data-i18n="opt_7d">7 天 (一周)</option>
+                <option value="0" data-i18n="opt_permanent">永久有效</option>
             </select>
 
             <button class="btn" id="uploadBtn" onclick="upload()" data-i18n="upload_btn">上传并获取链接</button>
@@ -249,6 +258,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 ttl_label: "文件有效期",
                 opt_1d: "1 天 (24 小时)",
                 opt_7d: "7 天 (一周)",
+                opt_permanent: "永久有效",
                 err_code: "安全码错误",
                 err_fail: "上传失败",
                 footer_text: "开源项目地址："
@@ -269,6 +279,7 @@ function renderFullHTML(data, id, isPreview, isAuthorized) {
                 ttl_label: "Expiration",
                 opt_1d: "1 Day (24 Hours)",
                 opt_7d: "7 Days (1 Week)",
+                opt_permanent: "Permanent",
                 err_code: "Invalid Security Code",
                 err_fail: "Upload Failed",
                 footer_text: "Open Source:"
